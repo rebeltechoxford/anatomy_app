@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vascular branches · Forma</title>
+<style>
+:root{color-scheme:dark;font:16px/1.55 system-ui,sans-serif;color:#e4eeea;background:#0c1718}
+*{box-sizing:border-box}body{margin:0}header,main,footer{max-width:1120px;margin:auto;padding:20px clamp(16px,4vw,48px)}
+header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #36504d}.brand{font:600 28px Georgia,serif}
+h1,h2{font:normal clamp(28px,4vw,44px) Georgia,serif;color:#f3f6ec;margin:10px 0}h2{font-size:30px}
+a{color:#a2e8cf}label{display:grid;gap:5px;color:#c2d3cd}input,select,button{font:inherit;color:inherit}
+input,select{border:1px solid #526c68;border-radius:7px;background:#122322;padding:8px 10px;width:100%}
+button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #efb775;outline-offset:2px}
+.filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:12px;margin:20px 0 10px}
+.layout{display:grid;grid-template-columns:minmax(220px,1fr) minmax(0,1.45fr);gap:18px}
+#list,article{background:#142423;border:1px solid #36504d;border-radius:10px;padding:10px}
+#list{max-height:56vh;overflow:auto}article{padding:20px;align-self:start}#list button{display:block;text-align:left;width:100%;border:0;border-radius:5px;background:transparent;padding:9px 10px}
+#list button[aria-current=true],#list button:hover{background:#28443e}
+h3{font-size:16px;margin:15px 0 4px}p{margin:5px 0 10px}
+.links{display:flex;gap:6px;flex-wrap:wrap}.links button,.links a{background:#213b36;border:1px solid #55746a;color:#def4e9;border-radius:6px;padding:5px 9px;text-decoration:none}
+#count,footer,.muted{color:#a8bbb4}footer{font-size:14px}#list:empty::before{content:'No matching vessels.'}
+@media(max-width:680px){.layout{display:flex;flex-direction:column}#list{max-height:200px}.filters{grid-template-columns:1fr 1fr}.filters label:first-child{grid-column:span 2}header,main,footer{padding:14px}}
+</style>
+</head>
+<body>
+<header><strong class="brand">Forma</strong><a id="back" href="./">Back to model</a></header>
+<main>
+<h1>Vascular branches</h1>
+<div class="filters">
+<label>Find a vessel<input type="search" id="q" placeholder="Search name, region or tissue"></label>
+<label>Reference model<select id="body"><option value="models">Male</option><option value="female">Female</option></select></label>
+<label>Vessel type<select id="type"><option value="">All types</option></select></label>
+</div>
+<p id="count" role="status">Loading reference…</p>
+<div class="layout"><div id="list" aria-label="Vessel results"></div><article id="detail" aria-live="polite"></article></div>
+</main><footer>Adapted from the HuBMAP Consortium’s <a href="https://github.com/hubmapconsortium/hra-vccf/blob/ccc0ec1b8a8ea97fd79e88811932bf58e38936dc/Vessel.csv">HRA vascular reference table</a> under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Model links use matching anatomical names or FMA identifiers.</footer>
+<script type="module" src="./vessels.js"></script>
+</body></html>

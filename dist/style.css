@@ -15,3 +15,52 @@ header select{margin-left:auto;border-radius:6px;padding:7px;background:#284d43;
 #pelvicFindings #labNote{margin-top:12px;border-top:1px solid #d5ddd3;padding-top:9px}
 #pelvicFindings .review-caption{margin-top:10px;color:#52695d}
 @media(max-width:760px){#pelvicReview{margin-top:6px;padding:5px 10px}}
+
+/* Dark anatomical viewing environment */
+:root {
+  color-scheme: dark;
+  --ink: #edf3f2;
+  --muted: #afc2c4;
+  --surface: #162125;
+  --raised: #203034;
+  --rail: #34494c;
+  --control-border: #697e81;
+  --accent: #a9e9d2;
+  --focus: #ffd491;
+  background: #0d1418;
+}
+body { background: #10191d; color: var(--ink); }
+header { background: #0f2023; border-bottom: 1px solid var(--rail); }
+.mark { background: var(--accent); color: #0e2824; }
+aside { background: var(--surface); border-color: var(--rail); }
+#stage { background: radial-gradient(ellipse at 52% 40%, #243236 0, #152125 56%, #0d1418 100%); }
+small, .heading p, .heading span, .hint, .eye, #pelvicFindings .review-caption { color: var(--muted); }
+.heading, .hint { text-shadow: 0 1px 4px #071013; }
+.sectionhead small { background: var(--raised); color: var(--muted); }
+.row, footer, #pelvicFindings #labNote { border-color: var(--rail); }
+a { color: var(--accent); }
+button, select, label, header select, header button, #view { background: var(--raised); color: var(--ink); border-color: var(--control-border); }
+input { color: var(--ink); accent-color: var(--accent); }
+input::placeholder { color: var(--muted); opacity: 1; }
+#inspect, #slicePanel, .tools, .zoom, #notice, dialog {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--control-border);
+  box-shadow: 0 6px 24px #0005;
+}
+dialog::backdrop { background: #050c10c9; }
+.tools [aria-pressed=true], #hide, #pelvicReview[aria-expanded=true] {
+  background: var(--accent);
+  color: #112c27;
+  border-color: var(--accent);
+}
+button:hover { filter: brightness(1.1); }
+.result:hover, .row button:hover, .tools button[aria-pressed=false]:hover { background: var(--raised); }
+button:focus-visible, select:focus-visible, a:focus-visible, input:focus-visible {
+  outline-color: var(--focus);
+  outline-offset: 1px;
+}
+:root { scrollbar-color: #627777 var(--surface); }
+
+.study-links{display:flex;flex-wrap:wrap;gap:.5rem;padding:.5rem .9rem 1rem}
+.study-links a{font-size:.9rem;text-decoration:underline;text-underline-offset:.22em}

@@ -1,18 +1,25 @@
+import {makeAtlasRenderer} from './canvas-renderer.js';
 import * as T from './vendor/three.js';
+import {setupTissueVessels} from './tissue-vessels.js';
 import {OrbitControls} from './vendor/orbit.js';
 const $=id=>document.getElementById(id);
 const palette={adipose:'#dbb570',pregnancy:'#b68799',muscular:'#ac5749',skeletal:'#dfcdae',connective:'#d3bca7',integumentary:'#c7a08c',arterial:'#c44739',venous:'#597a98',nervous:'#dbb14d',respiratory:'#c39298',cardiac:'#a75255',digestive:'#bd8875',urinary:'#a36a58',reproductive:'#c39699',endocrine:'#ce975b',lymphatic:'#84a178',sensory:'#b59b88'};
 const eye='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12Q12 -1 22 12Q12 25 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const cap=s=>s[0].toUpperCase()+s.slice(1);
 async function start(){
+ let clearTissue=()=>{};
  const query=new URLSearchParams(location.search);
  const notes=new URLSearchParams(location.hash.slice(1));
  const folder=query.get('body')==='female'?'female':'models';
+ for(const id of ['vesselsLink','microLink','specimenLink']){
+  const link=$(id);
+  link.search='?body='+folder;
+ }
  $('body').value=folder;$('body').onchange=()=>location.search='?body='+$('body').value;
  if(folder==='female')$('sourceName').textContent='Adult female / Human Reference Atlas';
  const [atlas,near]=await Promise.all(['atlas','near'].map(n=>fetch(folder+'/'+n+'.json').then(r=>r.json()))),parts=atlas.parts;
  for(const key of Object.keys(palette))if(!parts.some(p=>p.system===key))delete palette[key];
- const renderer=new T.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));$('viewport').append(renderer.domElement);
+ const renderer=makeAtlasRenderer(T);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));$('viewport').append(renderer.domElement);
  const scene=new T.Scene(),camera=new T.PerspectiveCamera(30,1,.003,50),orbit=new OrbitControls(camera,renderer.domElement);
  orbit.minDistance=.025;orbit.maxDistance=12;orbit.enableDamping=false;
  scene.add(new T.HemisphereLight(0xfff9e9,0x8c9390,1.6));
@@ -67,6 +74,7 @@ async function start(){
   invalidate();
  }
  function showReview(ids=[ovary,...bladder]){
+  clearTissue();
   reviewing=true;
   shown=parts.map((p,i)=>reviewMaterials.has(i)||reviewContext.has(p.name));
   selected=null;
@@ -111,14 +119,31 @@ async function start(){
  $('search').oninput=library;$('view').onchange=front;$('fit').onclick=front;$('focus').onclick=focus;
  for(const [id,m] of [['plus',.8],['minus',1.25]])$(id).onclick=()=>{let v=camera.position.clone().sub(orbit.target);v.setLength(T.MathUtils.clamp(v.length()*m,.025,12));camera.position.copy(orbit.target).add(v);orbit.update();invalidate()};
  $('hide').onclick=()=>remove(selected);$('solo').onclick=()=>{save();shown=shown.map((_,i)=>i===selected);focus();sync()};
- $('undo').onclick=()=>{if(history.length){const wasReviewing=reviewing;[shown,selected,reviewing]=history.pop();if(reviewing!==wasReviewing){if(reviewing)frameReview([ovary,...bladder]);else front()}sync()}};
+ $('undo').onclick=()=>{if(history.length){clearTissue();const wasReviewing=reviewing;[shown,selected,reviewing]=history.pop();if(reviewing!==wasReviewing){if(reviewing)frameReview([ovary,...bladder]);else front()}sync()}};
  function mode(on){dissect=on;$('inspectMode').setAttribute('aria-pressed',!on);$('peel').setAttribute('aria-pressed',on);$('hint').textContent=on?'Select a structure to remove it · Undo to restore':'Drag to rotate · Scroll to zoom · Select to inspect'}
- $('inspectMode').onclick=()=>mode(false);$('peel').onclick=()=>mode(true);$('reset').onclick=()=>{save();shown=initial.slice();selected=null;reviewing=false;expanded='';$('search').value='';$('view').value='Anterior';mode(false);if(slicing)$('sliceButton').click();front();sync()};
+ $('inspectMode').onclick=()=>mode(false);$('peel').onclick=()=>mode(true);$('reset').onclick=()=>{clearTissue();save();shown=initial.slice();selected=null;reviewing=false;expanded='';$('search').value='';$('view').value='Anterior';mode(false);if(slicing)$('sliceButton').click();front();sync()};
  let down;const canvas=renderer.domElement;canvas.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;let r=canvas.getBoundingClientRect(),ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2),camera);let hit=ray.intersectObjects(meshes.filter(m=>m.visible),false).find(h=>!h.object.material.clippingPlanes?.length||plane.distanceToPoint(h.point)>=0);if(hit){let i=hit.object.userData.index;dissect?remove(i):pick(i)}else{selected=null;sync()}});
- if(canReview&&query.get('view')==='pelvic-review')showReview();else sync();
+ const requestedStructure=query.get('structure');
+ if(canReview&&query.get('view')==='pelvic-review'){
+  showReview();
+ }else if(/^\d+$/.test(requestedStructure)&&Number(requestedStructure)<parts.length){
+  selected=Number(requestedStructure);
+  shown=parts.map((_,i)=>i===selected);
+  focus();
+  sync();
+ }else sync();
  let cursor=0,loaded=0;
  async function worker(){while(cursor<atlas.chunks.length){const n=cursor++,r=await fetch(folder+'/body-'+n+'.gz');if(!r.ok)throw Error('Model download failed');let buffer=await r.arrayBuffer();if(new Uint8Array(buffer)[0]===31&&new Uint8Array(buffer)[1]===139)buffer=await new Response(new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
  parts.forEach((p,i)=>{if(p.chunk!==n)return;const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(new Float32Array(buffer,p.positions,p.vertexCount*3),3));g.setAttribute('normal',new T.BufferAttribute(new Int16Array(buffer,p.normals,p.vertexCount*3),3,true));g.setIndex(new T.BufferAttribute(new Uint32Array(buffer,p.indices,p.indexCount),1));let mesh=new T.Mesh(g,materialFor(i));mesh.userData.index=i;mesh.visible=shown[i];scene.add(mesh);meshes[i]=mesh});invalidate();$('notice').textContent='Loading anatomy · '+Math.round(++loaded/atlas.chunks.length*100)+'%'}}
  await Promise.all([worker(),worker(),worker()]);$('notice').hidden=true;
+ clearTissue=setupTissueVessels({T,parts,meshes,scene,camera,orbit,invalidate,button:$('tissueVessels'),status:$('tissueStatus'),currentSelection:()=>selected,showOnly(i){
+  save();
+  reviewing=false;
+  selected=i;
+  shown=parts.map((_,j)=>i===j);
+  if(slicing)$('sliceButton').click();
+  mode(false);
+  sync();
+ }});
 }
 start().catch(e=>{$('notice').textContent='Model unavailable. Enable WebGL and reload.';console.error(e)});
