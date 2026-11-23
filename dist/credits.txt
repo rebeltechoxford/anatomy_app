@@ -1,5 +1,17 @@
 # Anatomy data attribution
 
+## Z-Anatomy (current male model and fitted female musculoskeletal/nerve/vessel structures)
+
+Z-Anatomy, by Gauthier Kervyn, Marcin Zielinski and contributors; Unity app by Lluís Vinent Juanico. Licensed CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Derived in part from BodyParts3D (DBCLS).
+- Source: https://github.com/Z-Anatomy/Models-of-human-anatomy and https://github.com/LluisV/Z-Anatomy (FBX exports, PC-Version branch); Latin names from its Translations0.txt.
+- Adaptations: converted from FBX (cm) to metres, coincident vertices welded, aligned to the BodyParts3D frame (similarity on 121 bone pairs + smooth RBF correction, 1.2 mm median residual), light Taubin smoothing, simplified base tier plus unsimplified detail tier, structures classified into display systems; muscle origin/insertion patches kept as attachment overlays. For the female body the same structures are reshaped with the male-to-female warp described below (marked "fitted").
+- Share-alike: the adapted Z-Anatomy geometry in dist/models and the fitted parts in dist/female are distributed under CC BY-SA 4.0.
+
+## Quick facts
+
+Origin / insertion / action / innervation / blood supply and summaries: Wikipedia contributors, article infoboxes and lead sections, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Each entry links its source article. Built by tools/facts.py.
+
+
 BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International.
 
 - License: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html (updated 2025-02-27)
@@ -10,6 +22,8 @@ BodyParts3D, © The Database Center for Life Science licensed under CC Attributi
 - Publication: Mitsuhashi et al. (2009), BodyParts3D: 3D structure database for anatomical concepts. https://doi.org/10.1093/nar/gkn613
 
 Adaptations: axes and units converted from millimeters/Z-up to meters/Y-up; translated to rest at the stage; geometry simplified using meshoptimizer with 0.2% relative error limit per structure; normals quantized to signed 16-bit; packed into binary chunks; curated display system groupings and colors. The source contains 2,234 individual OBJ meshes; all remain represented. The combined hierarchy contains 3,432 named FMA concepts, which may reference multiple meshes. Original source identity is preserved in the manifest.
+
+Full-resolution tier (`models/detail/`): all 6,681,030 source triangles, unsimplified, with the same axis/unit conversion. Positions quantized to 16 bits per structure extent, normals to 8 bits, compressed with the meshoptimizer vertex/index codecs. Streamed on demand when the camera is close; built by `tools/build-tiers.mjs`.
 
 Source OBJ comments mention an older CC BY-SA 2.1 Japan license. The official current database license linked above supersedes that legacy text and explicitly permits redistribution and adaptation under CC BY 4.0.
 
@@ -24,9 +38,40 @@ Earlier repository revisions included female reference anatomy: Kristen Browne a
 - Original GLB: https://cdn.humanatlas.io/digital-objects/ref-organ/united-female/v1.5/assets/3d-vh-f-united.glb
 - License: https://creativecommons.org/licenses/by/4.0/
 
-Adaptations: translated native meter/Y-up coordinates onto the stage, coincident vertices welded and source normals averaged, geometry simplified with a 0.2% per-structure relative error bound, and normals quantized. Colors and display systems are curated for this interface. All 888 source meshes are represented, with 1,073 source nodes available as selectable individual or compound concepts.
+Adaptations: translated native meter/Y-up coordinates onto the stage, coincident vertices welded and source normals averaged, geometry simplified with a 0.2% per-structure relative error bound, and normals quantized. Colors and display systems are curated for this interface. Full-resolution tier (`female/detail/`): all 5,557,551 source triangles, welded but unsimplified, packed as for the male tier. All 888 source meshes are represented, with 1,073 source nodes available as selectable individual or compound concepts.
 
 This is a reference assembly with whole-body surface and selected organs, including female reproductive anatomy. Its skeleton and muscle coverage is partial. It is not a complete model of every human structure or a single-person scan. Eight placenta/umbilical structures are classified under Pregnancy reference and hidden by default.
 
 Forma includes the female Human Reference Atlas v1.5 assembly described above. Female meshes were simplified and packed for mobile viewing. Fat meshes cover regional breast anatomy. These models have different coverage. The app estimates proximity from up to 384 sampled vertices per structure. This does not trace nerves or measure vessel clearance in a patient.
 Male mesh packaging source: https://github.com/ashemag/human-atlas
+
+## Rendering libraries
+
+- three.js r160 and its example post-processing/environment modules (`vendor/`, `vendor/fx/`): MIT, see vendor/LICENSE.
+- meshoptimizer decoder 0.21 (`vendor/meshopt_decoder.module.js`): MIT, © Arseny Kapoulkine.
+- N8AO 1.8.1 ambient occlusion (`vendor/fx/N8AO.js`): CC0 1.0, N8python. Import of the optional `postprocessing` library stubbed out.
+
+Tissue colors and surface textures are procedural (no photographic textures). They are an illustrative approximation of fresh tissue, not measured color data.
+
+## Smoothing (both bodies)
+
+All source meshes are Taubin-smoothed (lambda 0.5 / mu -0.53; 8 passes male, 4 female; open boundaries pinned) before both tiers are built, removing MRI stair-step artefacts without shrinkage. Built by `tools/smooth.py` and `tools/build-tiers.mjs`.
+
+## Female musculoskeletal coverage (fitted)
+
+The HRA female set has organs, spine, pelvis and legs but no skull, arm, hand or foot bones and almost no muscles. 1,689 male BodyParts3D structures (skeleton, muscles, connective tissue, limb vessels, ear/orbit adnexa, orbital nerves) are fitted into the female body by `tools/fit_female.py`: Procrustes alignment on 35 paired bones, articulated arm re-posing (shoulder/elbow), then non-rigid ICP to her skin and bones with Gaussian RBF regularisation (mean residual ~3 mm to paired bones, ~7 mm to skin). These are marked "fitted" in the viewer: approximate male-derived anatomy, not female-specific data. Female-specific structures from HRA are unchanged.
+
+## Modeled nervous-system wiring
+
+Neither source contains spinal roots or limb nerves (BodyParts3D has no spinal cord). `tools/nerves.py` models the spinal canal and cord, 31 pairs of dorsal/ventral roots at textbook segment levels exiting their foramina, rami, cervical/brachial/lumbar/sacral plexuses, intercostal, peripheral and selected cranial nerves, routed along this body's bone surfaces, artery centrelines and muscles, with a branch into each innervated muscle. Segment/dermatome/myotome facts follow standard references (e.g. ASIA International Standards for Neurological Classification of SCI; Gray's Anatomy). The female model is carried over with the same warp. Brain pathway waypoints use the atlas brain structures. Study aid, not dissection data.
+
+Dermatome map: `tools/dermatomes.py` labels the skin by landmark rules (Keegan & Garrett / ASIA key points). Real dermatomes overlap and vary between people.
+
+## Published imaging
+
+- Radiology figures: Open-i, U.S. National Library of Medicine (https://openi.nlm.nih.gov), indexing figures from open-access articles in PubMed Central. Prefetched metadata in `radiology.json` (`tools/radiology.py`); images are linked, not copied; each figure shows its article and licence.
+- Imaging studies: Europe PMC REST API (https://europepmc.org), queried live from the Details dialog.
+
+## Stimulation simulator
+
+`stim.js`: homogeneous volume conductor (0.2 S/m), McNeal/Rattay activating function on the modeled nerve paths, strength-duration thresholds per fibre class (Aα, Aβ, Aδ, C), skin current-density perception, cortical field threshold; calibrated to nerve-locator (~0.5 mA at 2 mm) and nerve-conduction (5-20 mA surface) practice and to direct-cortical-stimulation ranges (2-10 mA). Educational estimate only.

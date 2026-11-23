@@ -47,8 +47,12 @@ export function setupTissueVessels({T,parts,meshes,scene,camera,orbit,invalidate
     if(geom.attributes.normal && normal.fromBufferAttribute(geom.attributes.normal,face.ia).dot(out)<0)out.negate();
     const span=Math.max(u.length(),v.length());
     // All barycentric coordinates stay inside the triangle. A small normal
-    // offset prevents the teaching overlay flickering against its host.
-    const origin=a.clone().addScaledVector(out,span*.003);
+    // offset prevents the teaching overlay flickering against its host; it also
+    // covers the 0.2% simplification error, so the overlay stays above the
+    // surface when the full-resolution mesh is streamed in.
+    const [lo,hi]=parts[g.index].bounds;
+    const extent=Math.hypot(hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]);
+    const origin=a.clone().addScaledVector(out,Math.max(span*.003,extent*.0035));
     const bary=(x,y)=>origin.clone().addScaledVector(u,.08+.58*x).addScaledVector(v,.05+.27*y);
     let seed=4871+g.index*31+bedIndex*997;
     const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
