@@ -52,9 +52,11 @@ def fetch(name):
     return name, {'query': q, 'figures': out}
 
 if __name__ == '__main__':
-    names = sorted({base(p['name']) for body in ('models', 'female') for p in atlas(body)['parts']} - {''})
-    print(len(names), 'unique structure names', flush=True)
-    result = {}
+    import os
+    old = json.load(open(sys.argv[1]))['items'] if os.path.exists(sys.argv[1]) else {}
+    names = sorted({base(p['name']) for body in ('models', 'female') for p in atlas(body)['parts'] if p.get('system') != 'attachment'} - {''} - set(old))
+    print(len(names), 'new structure names', flush=True)
+    result = dict(old)
     with ThreadPoolExecutor(4) as pool:
         for k, (n, r) in enumerate(pool.map(fetch, names)):
             result[n] = r
