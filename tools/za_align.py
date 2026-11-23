@@ -136,6 +136,12 @@ def main(raw, male_npz, out):
     vs, fs, keep = [], [], []
     for it, (v, f) in zip(items, mesh):
         w = warp(sim(v))
+        # FBX import is un-indexed: weld coincident vertices so surfaces share
+        # vertices (smooth normals, smoothing, ~3x less data).
+        key = np.round(w / 2e-6).astype(np.int64)
+        _, first, inv = np.unique(key, axis=0, return_index=True, return_inverse=True)
+        w, f = w[first], inv.reshape(-1)[f]
+        f = f[(f[:, 0] != f[:, 1]) & (f[:, 1] != f[:, 2]) & (f[:, 0] != f[:, 2])]
         used = np.unique(f); remap = np.full(len(w), -1); remap[used] = np.arange(len(used)); w, f = w[used], remap[f]
         if it['kind'] == 'structure': w = taubin(w, f, 3)
         vs.append(w.astype(np.float32)); fs.append(f.astype(np.uint32)); keep.append(it)
