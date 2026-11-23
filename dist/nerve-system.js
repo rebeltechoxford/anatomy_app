@@ -260,7 +260,12 @@ export async function setupNerves({T, folder, parts, meshes, scene, tissues, inv
   const steps = [];
   function describe(kind, n, L, side, muscle) {
     const s = side > 0 ? 'left' : 'right', o = side > 0 ? 'right' : 'left';
-    const li = levelInfo.get(L);
+    const segs = String(L).split('–').filter(x => levelInfo.has(x));
+    const first = levelInfo.get(segs[0]), last = levelInfo.get(segs[segs.length - 1]);
+    const where = x => (x.exit.match(/between (.+?) and (.+?)[ ,.(]/) || []).slice(1).join('/') || x.exit.replace(/^Exits |\.$/g, '');
+    const li = segs.length > 1 ? {cordAtVertebra: `${first.cordAtVertebra.replace(' vertebral level', '')}–${last.cordAtVertebra}`,
+      exit: `roots exit through ${segs.map(x => `${x} (${where(levelInfo.get(x))})`).join(', ')}.`, dermatome: segs.map(x => levelInfo.get(x).dermatome).join(' / ')} : first;
+    L = segs.length > 1 ? `${segs[0]}–${segs[segs.length - 1]}` : segs[0] || L;
     if (kind === 'motor') return [
       `${cap(o)} precentral gyrus (primary motor cortex)${muscle || n ? ', ' + regionFor(muscle || '', n) + ' area' : ''} — upper motor neurons (Betz cells, layer V).`,
       'Corona radiata → posterior limb of the internal capsule.', 'Cerebral peduncle (crus cerebri) of the midbrain → basilar pons → medullary pyramid.',
@@ -316,6 +321,7 @@ export async function setupNerves({T, folder, parts, meshes, scene, tissues, inv
       }
       out.title = `${nerve.name} — ${kind === 'motor' ? 'voluntary movement (corticospinal)' : kind === 'pain' ? 'pain & temperature (spinothalamic)' : 'touch & position (dorsal column–medial lemniscus)'}`;
       out.steps = describe(kind, nerve, segs.join('–'), sd, muscle);
+      if (!segs.length) out.steps = [`${nerve.name}: ${nerve.skin || ''}`];
       out.segments = segs;
     } else if (level) {
       const li = levelInfo.get(level);

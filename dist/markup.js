@@ -115,7 +115,9 @@ export function setupMarkup({T, scene, parts, folder, invalidate, onFocus}) {
     let added = 0, updated = 0;
     for (const p of incoming) {
       if (!p || typeof p !== 'object') continue;
-      p.id ||= uid(); p.annotations ||= [];
+      p.id = String(p.id || uid()); p.annotations = Array.isArray(p.annotations) ? p.annotations.filter(a => a && Array.isArray(a.points)) : [];
+      // imported files are untrusted: keep colours to plain hex values
+      p.annotations.forEach(a => { if (!/^#[0-9a-f]{3,8}$/i.test(a.color || '')) a.color = PALETTE[0]; a.id = String(a.id || uid()); });
       const i = db.patients.findIndex(x => x.id === p.id);
       if (i >= 0) { db.patients[i] = p; updated++; } else { db.patients.push(p); added++; }
     }
