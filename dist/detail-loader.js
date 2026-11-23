@@ -81,10 +81,10 @@ export async function setupDetailStreaming({T, folder, parts, meshes, camera, or
     if (!enabled) return;
     const shownNow = shown();
     const distance = camera.position.distanceTo(orbit.target);
-    if (distance > 1.7) return; // full-body framing: base tier is plenty
+    if (distance > 1.3) return; // full-body framing: base tier is plenty
     matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(matrix);
-    const reach = Math.max(.35, distance * 1.4);
+    const reach = Math.max(.25, distance * .9);
     const wanted = [];
     boxes.forEach((box, n) => {
       if (state[n] !== 'idle' || queue.has(n)) return;

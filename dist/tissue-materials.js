@@ -13,7 +13,7 @@
 // Colours are sRGB references for fresh (embalming-free) tissue, tuned for
 // legibility under the viewer's lighting rather than measured.
 export const TISSUES = {
-  bone:      {color:'#d9c7a2', alt:'#ad9467', pattern:2, scale:.014, bump:.45, vary:.16, roughness:.66, clearcoat:.05},
+  bone:      {color:'#cdb890', alt:'#a08559', pattern:2, scale:.014, bump:.45, vary:.16, roughness:.66, clearcoat:.05},
   enamel:    {color:'#f3efe2', alt:'#ddd3bb', pattern:0, scale:.004, bump:.08, vary:.04, roughness:.22, clearcoat:.65},
   gum:       {color:'#c96f70', alt:'#a9525a', pattern:0, scale:.004, bump:.2,  vary:.12, roughness:.45, clearcoat:.5},
   cartilage: {color:'#d6dcd6', alt:'#b9c6c4', pattern:0, scale:.010, bump:.12, vary:.07, roughness:.32, clearcoat:.55},
@@ -202,7 +202,7 @@ function inject(material, spec) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         // Selection: teal Fresnel rim that leaves the tissue colour readable.
         float tF = pow(1.0 - abs(dot(normalize(vViewPosition), normalize(nonPerturbedNormal))), 2.5);
-        totalEmissiveRadiance += vec3(.18,.85,.68) * tRim * (.12 + tF);`);
+        totalEmissiveRadiance += vec3(.18,.85,.68) * tRim * (.035 + .8*tF);`);
   };
   material.customProgramCacheKey = () => 'tissue-v2';
 }

@@ -56,7 +56,7 @@ async function start() {
 
   scene.add(new T.HemisphereLight(0xfff4e6, 0x48545a, gpu ? .55 : 1.6));
   // Key (warm, upper left), fill (cool, right) and rim (behind) lights.
-  for (const [x, y, z, power, color] of [[-3, 5, 4, 2.4, 0xfff1e0], [4, 1.5, 2, .7, 0xdfe9ff], [1, 3, -5, 1.5, 0xffffff]]) {
+  for (const [x, y, z, power, color] of [[-3, 5, 4, 2.0, 0xfff1e0], [4, 1.5, 2, .7, 0xdfe9ff], [1, 3, -5, 1.5, 0xffffff]]) {
     const light = new T.DirectionalLight(color, gpu ? power : power * .8);
     light.position.set(x, y, z);
     scene.add(light);
