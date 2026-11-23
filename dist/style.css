@@ -166,3 +166,14 @@ button.link{background:none;border:0;color:var(--accent);text-decoration:underli
 
 .peel[hidden],#peelWrap[hidden]{display:none}
 #stage.labelling .heading{opacity:.18}
+@media(max-width:760px){
+  #inspect{max-height:44%;overflow:auto;bottom:62px;max-width:66%}
+  #inspect h3{margin:2px 0 4px}
+  #inspect .latin{margin:-2px 0 6px;font-size:12px}
+  .quick{grid-template-columns:1fr;gap:1px;max-height:110px;font-size:11.5px}
+  .quick dt{font-size:9.5px;margin-top:3px}
+  #inspect div button{padding:4px 7px;font-size:11.5px}
+  header button{white-space:nowrap;font-size:12px;padding:6px 8px}
+  header select{max-width:42vw}
+  #detailStatus{font-size:9px;padding:3px 8px 3px 18px}
+}

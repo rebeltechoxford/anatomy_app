@@ -375,7 +375,9 @@ async function start() {
     dissect = on;
     $('inspectMode').setAttribute('aria-pressed', !on);
     $('peel').setAttribute('aria-pressed', on);
-    $('hint').textContent = on ? 'Select a structure to remove it · Peel to strip layers from the skin inward · Undo to restore' : 'Drag to rotate · Scroll to dive in · Right-drag to pan · Select to inspect';
+    const touch = matchMedia('(pointer: coarse)').matches;
+    $('hint').textContent = on ? (touch ? 'Tap to remove · Peel strips layers · Undo restores' : 'Select a structure to remove it · Peel to strip layers from the skin inward · Undo to restore')
+      : (touch ? 'Drag to rotate · Pinch to zoom · Two fingers to pan · Tap to inspect' : 'Drag to rotate · Scroll to dive in · Right-drag to pan · Select to inspect');
     $('peelWrap').hidden = !on;
     if (!on && peel) { peel = 0; $('peelDepth').value = 0; $('peelOut').textContent = '0 mm'; sync(); }
   }
