@@ -11,6 +11,8 @@ BodyParts3D, © The Database Center for Life Science licensed under CC Attributi
 
 Adaptations: axes and units converted from millimeters/Z-up to meters/Y-up; translated to rest at the stage; geometry simplified using meshoptimizer with 0.2% relative error limit per structure; normals quantized to signed 16-bit; packed into binary chunks; curated display system groupings and colors. The source contains 2,234 individual OBJ meshes; all remain represented. The combined hierarchy contains 3,432 named FMA concepts, which may reference multiple meshes. Original source identity is preserved in the manifest.
 
+Full-resolution tier (`models/detail/`): all 6,681,030 source triangles, unsimplified, with the same axis/unit conversion. Positions quantized to 16 bits per structure extent, normals to 8 bits, compressed with the meshoptimizer vertex/index codecs. Streamed on demand when the camera is close; built by `tools/build-detail.mjs`.
+
 Source OBJ comments mention an older CC BY-SA 2.1 Japan license. The official current database license linked above supersedes that legacy text and explicitly permits redistribution and adaptation under CC BY 4.0.
 
 BodyParts3D represents an adult male reference anatomy based on TARO MRI and anatomical illustration refinements. It is not a complete model of every possible human anatomical structure or variation. This interface is educational and is not a clinical tool.
@@ -24,9 +26,17 @@ Earlier repository revisions included female reference anatomy: Kristen Browne a
 - Original GLB: https://cdn.humanatlas.io/digital-objects/ref-organ/united-female/v1.5/assets/3d-vh-f-united.glb
 - License: https://creativecommons.org/licenses/by/4.0/
 
-Adaptations: translated native meter/Y-up coordinates onto the stage, coincident vertices welded and source normals averaged, geometry simplified with a 0.2% per-structure relative error bound, and normals quantized. Colors and display systems are curated for this interface. All 888 source meshes are represented, with 1,073 source nodes available as selectable individual or compound concepts.
+Adaptations: translated native meter/Y-up coordinates onto the stage, coincident vertices welded and source normals averaged, geometry simplified with a 0.2% per-structure relative error bound, and normals quantized. Colors and display systems are curated for this interface. Full-resolution tier (`female/detail/`): all 5,557,551 source triangles, welded but unsimplified, packed as for the male tier. All 888 source meshes are represented, with 1,073 source nodes available as selectable individual or compound concepts.
 
 This is a reference assembly with whole-body surface and selected organs, including female reproductive anatomy. Its skeleton and muscle coverage is partial. It is not a complete model of every human structure or a single-person scan. Eight placenta/umbilical structures are classified under Pregnancy reference and hidden by default.
 
 Forma includes the female Human Reference Atlas v1.5 assembly described above. Female meshes were simplified and packed for mobile viewing. Fat meshes cover regional breast anatomy. These models have different coverage. The app estimates proximity from up to 384 sampled vertices per structure. This does not trace nerves or measure vessel clearance in a patient.
 Male mesh packaging source: https://github.com/ashemag/human-atlas
+
+## Rendering libraries
+
+- three.js r160 and its example post-processing/environment modules (`vendor/`, `vendor/fx/`): MIT, see vendor/LICENSE.
+- meshoptimizer decoder 0.21 (`vendor/meshopt_decoder.module.js`): MIT, © Arseny Kapoulkine.
+- N8AO 1.8.1 ambient occlusion (`vendor/fx/N8AO.js`): CC0 1.0, N8python. Import of the optional `postprocessing` library stubbed out.
+
+Tissue colors and surface textures are procedural (no photographic textures). They are an illustrative approximation of fresh tissue, not measured color data.

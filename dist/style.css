@@ -64,3 +64,11 @@ button:focus-visible, select:focus-visible, a:focus-visible, input:focus-visible
 
 .study-links{display:flex;flex-wrap:wrap;gap:.5rem;padding:.5rem .9rem 1rem}
 .study-links a{font-size:.9rem;text-decoration:underline;text-underline-offset:.22em}
+
+/* Full-resolution streaming indicator */
+#detailStatus{position:absolute;z-index:1;top:70px;right:25px;font:600 11px 'Courier New',monospace;letter-spacing:.8px;color:var(--muted);background:#162125d9;border:1px solid var(--rail);border-radius:20px;padding:5px 10px 5px 22px;pointer-events:none}
+#detailStatus::before{content:'';position:absolute;left:9px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:var(--accent)}
+#detailStatus.busy::before{animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{to{opacity:.25}}
+@media(max-width:760px){#detailStatus{top:52px;right:10px;font-size:10px}}
+@media(prefers-reduced-motion:reduce){#detailStatus.busy::before{animation:none}}
