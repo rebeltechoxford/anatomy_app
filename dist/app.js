@@ -44,7 +44,7 @@ async function start() {
   for (const id of ['vesselsLink', 'microLink', 'specimenLink']) $(id).search = '?body=' + folder;
   $('body').value = folder;
   $('body').onchange = () => location.search = '?body=' + $('body').value;
-  if (folder === 'female') $('sourceName').textContent = 'Adult female / Human Reference Atlas';
+  $('sourceName').textContent = folder === 'female' ? 'Adult female / Human Reference Atlas + Z-Anatomy (fitted)' : 'Adult male / Z-Anatomy · BodyParts3D';
 
   const [atlas, near] = await Promise.all(['atlas', 'near'].map(n => fetch(folder + '/' + n + '.json').then(r => r.json())));
   const parts = atlas.parts;
@@ -116,7 +116,9 @@ async function start() {
   // ---- View state ----------------------------------------------------------------
   const meshes = [];
   const sets = Object.fromEntries(Object.keys(palette).map(s => [s, parts.map((p, i) => p.system === s ? i : -1).filter(i => i >= 0)]));
-  const initial = parts.map(p => !['integumentary', 'pregnancy', 'attachment'].includes(p.system)), history = [];
+  // Sheets that envelop everything (fascia, aponeuroses, serous membranes) start hidden, as in a dissection.
+  const SHEET = /fascia|aponeuros|bursa|sheath|septum|retinacul|pleura|peritone|omentum|mesocolon|meso-|capsule|membrane|dura|arachnoid|falx|tentorium|tela /i;
+  const initial = parts.map(p => !['integumentary', 'pregnancy', 'attachment'].includes(p.system) && !SHEET.test(p.name)), history = [];
   // Muscle origin/insertion patches (Z-Anatomy): shown only for the selected muscle.
   const attachKey = (side, muscle) => (side || '') + '|' + muscle.toLowerCase().replace(/\s+muscles?$/, '').replace(/^(left|right)\s+/, '');
   const attachments = new Map();
@@ -322,7 +324,7 @@ async function start() {
     const add = (tag, txt) => { const node = document.createElement(tag); node.textContent = txt; d.append(node); return node; };
     add('small', cap(p.system) + ' system');
     add('h2', p.name);
-    add('p', (folder === 'female' ? 'Human Reference Atlas · Female v1.5' : 'BodyParts3D · Male v4.0') + (p.conceptId ? ' · ' + p.conceptId : ''));
+    add('p', ({'Z-Anatomy': 'Z-Anatomy (CC BY-SA 4.0)', HRA: 'Human Reference Atlas · Female v1.5', BodyParts3D: 'BodyParts3D 4.0'}[p.source] || (folder === 'female' ? 'Human Reference Atlas · Female v1.5' : 'BodyParts3D 4.0')) + (p.conceptId ? ' · ' + p.conceptId : ''));
     if (p.latin) { const la = add('p', p.latin); la.className = 'latin'; }
     const f = factsFor(p.name);
     if (f) {
@@ -485,8 +487,9 @@ async function start() {
     sync();
   }});
 
-  labels = setupLabels({T, parts, meshes, camera, viewport: $('viewport'), renderer, onPick: i => { pick(i); }, extraHidden: i => parts[i].system === 'attachment'});
-  $('labelsBtn').onclick = () => { labels.set(!labels.on); $('labelsBtn').setAttribute('aria-pressed', labels.on); labels.select(selected); };
+  labels = setupLabels({T, parts, meshes, camera, viewport: $('viewport'), renderer, onPick: i => { pick(i); }, extraHidden: i => parts[i].system === 'attachment',
+    avoid: () => ['inspect', 'slicePanel', 'view', 'detailStatus'].map(id => $(id)).filter(e => e && !e.hidden && e.offsetParent).map(e => e.getBoundingClientRect()).concat([document.querySelector('.tools').getBoundingClientRect(), document.querySelector('.zoom').getBoundingClientRect()])});
+  $('labelsBtn').onclick = () => { labels.set(!labels.on); $('labelsBtn').setAttribute('aria-pressed', labels.on); $('stage').classList.toggle('labelling', labels.on); labels.select(selected); };
 
   // ---- Tabs ----------------------------------------------------------------------
   function openTab(name) {

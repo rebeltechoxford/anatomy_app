@@ -163,3 +163,6 @@ button.link{background:none;border:0;color:var(--accent);text-decoration:underli
 .peel input{width:110px;accent-color:var(--accent)}
 .peel output{font:12px 'Courier New',monospace;min-width:42px}
 @media(max-width:760px){.label{max-width:44%}.label i{display:none}.peel input{width:70px}.tools{max-width:96vw;overflow-x:auto}}
+
+.peel[hidden],#peelWrap[hidden]{display:none}
+#stage.labelling .heading{opacity:.18}

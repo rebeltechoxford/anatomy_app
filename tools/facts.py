@@ -8,7 +8,7 @@ attribution.
 
   python3 tools/facts.py <parts.json> [<parts.json> ...] dist/facts.json
 """
-import json, re, sys, time, html, urllib.parse, urllib.request
+import json, re, sys, time, html, urllib.parse, urllib.request, urllib.error
 
 API = 'https://en.wikipedia.org/w/api.php'
 UA = {'User-Agent': 'anatomy-atlas-builder/1.0 (educational viewer)'}
@@ -24,11 +24,15 @@ SIDE = re.compile(r'^(left|right)\s+', re.I)
 
 def get(params):
     url = API + '?' + urllib.parse.urlencode({**params, 'format': 'json', 'formatversion': 2})
-    for k in range(4):
+    for k in range(8):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r: return json.load(r)
+        except urllib.error.HTTPError as e:
+            # rate limited: honour Retry-After, otherwise back off exponentially
+            wait = int(e.headers.get('Retry-After') or 0) or min(300, 15 * 2 ** k)
+            print('HTTP', e.code, '- waiting', wait, 's', flush=True); time.sleep(wait)
         except Exception:
-            time.sleep(2 + 3 * k)
+            time.sleep(5 + 5 * k)
     return {}
 
 def clean(v):
@@ -102,13 +106,13 @@ def main(inputs, out):
             p = pages.get(t)
             if not p or p.get('missing') or 'revisions' not in p: continue
             text = p['revisions'][0]['slots']['main']['content']
-            if re.match(r'(?i)#redirect', text) or '{{disambiguation' in text.lower() or '{{dis' in text.lower()[:200]: continue
+            if re.match(r'(?i)#redirect', text) or re.search(r'(?i)\{\{(disambiguation|disambig|dab|hndis|set index)[|}]', text[:2000]): continue
             kind, fields = infobox(text)
             if not fields and not re.search(r'(?i)\b(muscle|bone|nerve|artery|vein|ligament|gland|organ|anatom|lobe|gyrus)', text[:3000]): continue
             facts[n] = {'title': t, 'url': 'https://en.wikipedia.org/wiki/' + urllib.parse.quote(t.replace(' ', '_')), 'kind': kind, 'fields': fields}
             titles.setdefault(t, []).append(n)
         print(k + 50, len(facts), flush=True)
-        time.sleep(.5)
+        time.sleep(2)
     tl = sorted(titles)
     for k in range(0, len(tl), 20):
         d = get({'action': 'query', 'prop': 'extracts', 'exintro': 1, 'explaintext': 1, 'exsentences': 3, 'exlimit': 20, 'titles': '|'.join(tl[k:k + 20])})
@@ -116,7 +120,7 @@ def main(inputs, out):
             ex = (p.get('extract') or '').strip()
             for n in titles.get(p['title'], []):
                 if ex: facts[n]['summary'] = re.sub(r'\s+', ' ', ex)[:700]
-        time.sleep(.5)
+        time.sleep(2)
     json.dump({'source': 'Wikipedia (CC BY-SA 4.0), article infoboxes and lead sections', 'items': facts}, open(out, 'w'), separators=(',', ':'))
     print('done', len(facts), 'structures with facts')
 

@@ -1,5 +1,7 @@
 # Forma Anatomy Atlas
 
+Male model: Z-Anatomy (≈3,580 structures incl. modeled peripheral nerves, facial muscles, ligaments, fasciae, lymph nodes, spinal cord) + BodyParts3D skin. Female model: Human Reference Atlas organs/brain/cord + Z-Anatomy musculoskeletal, nerves and vessels fitted into her body. Selecting a structure shows its Latin name and quick facts (origin, insertion, action, innervation, blood supply); muscles light up their origin (red) and insertion (blue) on the bones; **Labels** draws leader-line labels; **Dissect → Peel** strips layers by depth below the skin.
+
 Explore adult female and male reference anatomy, isolate structures, inspect cutaways, and study vascular branching at several scales.
 
 Run the application from the repository root with `python3 -m http.server 8080 --directory dist`, then open http://localhost:8080. All viewer assets are included. Source references and licensing are in [the model credits](dist/credits.txt) and the individual vascular study pages.
@@ -19,7 +21,9 @@ Run the application from the repository root with `python3 -m http.server 8080 -
 - **Patients**: family profiles with pins, freehand drawing and notes on the 3D body; stored as plain JSON in the browser; export/import raw JSON. Not encrypted (by design, for personal use).
 - **Details → Published imaging**: open-access CT/MRI/X-ray/ultrasound figures (NLM Open-i) and most-cited imaging studies (Europe PMC) for the selected structure.
 
-Pipeline: `smooth.py` → `fit_female.py` → `bundle.py` + `build-tiers.mjs` → `nerves.py` → `dermatomes.py` → `radiology.py` (needs numpy, scipy; Node meshoptimizer 0.21).
+Z-Anatomy pipeline: `zanatomy.mjs` (FBX → bundle) → `za_align.py` → `fix_attachments.py` → `compose.py` → `build-tiers.mjs` → `facts.py`.
+
+Original pipeline: `smooth.py` → `fit_female.py` → `bundle.py` + `build-tiers.mjs` → `nerves.py` → `dermatomes.py` → `radiology.py` (needs numpy, scipy; Node meshoptimizer 0.21).
 
 - Browsers without WebGL2 fall back to the reduced canvas renderer without these effects.
 

@@ -2,7 +2,7 @@
 // visible structures, stacked in left/right columns with lines to an anchor
 // point on each structure. Occluded anchors are skipped. Recomputed after the
 // camera settles.
-export function setupLabels({T, parts, meshes, camera, viewport, renderer, onPick, extraHidden = () => false}) {
+export function setupLabels({T, parts, meshes, camera, viewport, renderer, onPick, extraHidden = () => false, avoid = () => []}) {
   const svgNS = 'http://www.w3.org/2000/svg';
   const layer = document.createElement('div'); layer.className = 'labels'; layer.hidden = true;
   const svg = document.createElementNS(svgNS, 'svg'); layer.append(svg);
@@ -62,22 +62,30 @@ export function setupLabels({T, parts, meshes, camera, viewport, renderer, onPic
     }
     // columns
     const left = chosen.filter(c => c.x < w / 2).sort((a, b) => a.y - b.y), right = chosen.filter(c => c.x >= w / 2).sort((a, b) => a.y - b.y);
+    // Keep labels clear of on-screen panels (info card, heading, controls).
+    const vr = viewport.getBoundingClientRect();
+    const blocks = avoid().filter(Boolean).map(r => ({l: r.left - vr.left - 6, r: r.right - vr.left + 6, t: r.top - vr.top - 6, b: r.bottom - vr.top + 6}));
     const place = (list, side) => {
-      const gap = 38, top = Math.max(70, h / 2 - list.length * gap / 2);
+      const gap = 38, colL = side === 'l' ? 0 : w - 250, colR = side === 'l' ? 250 : w;
+      let y = Math.max(96, h / 2 - list.length * gap / 2);
       list.forEach((c, k) => {
-        const y = Math.min(h - 30, top + k * gap), x = side === 'l' ? 12 : w - 12;
+        let guard = 0;
+        while (guard++ < 40 && blocks.some(b => b.l < colR && b.r > colL && y + 18 > b.t && y - 18 < b.b)) y += 12;
+        if (y > h - 40) return;
+        const x = side === 'l' ? 12 : w - 12;
+        const yy = y; y += gap;
         const el = document.createElement('button'); el.className = 'label ' + side;
         const p = parts[c.i];
         el.innerHTML = '';
         const nm = document.createElement('b'); nm.textContent = p.name; el.append(nm);
         if (p.latin) { const la = document.createElement('i'); la.textContent = p.latin; el.append(la); }
-        el.style.top = (y - 14) + 'px'; el.style[side === 'l' ? 'left' : 'right'] = '12px';
+        el.style.top = (yy - 14) + 'px'; el.style[side === 'l' ? 'left' : 'right'] = '12px';
         if (c.i === selected) el.classList.add('sel');
         el.onclick = () => onPick(c.i);
         layer.append(el);
         const ex = side === 'l' ? Math.min(w * .32, x + el.offsetWidth + 4) : Math.max(w * .68, x - el.offsetWidth - 4);
         const line = document.createElementNS(svgNS, 'polyline');
-        line.setAttribute('points', `${side === 'l' ? x + el.offsetWidth : x - el.offsetWidth},${y} ${ex},${y} ${c.x},${c.y}`);
+        line.setAttribute('points', `${side === 'l' ? x + el.offsetWidth : x - el.offsetWidth},${yy} ${ex},${yy} ${c.x},${c.y}`);
         line.setAttribute('class', c.i === selected ? 'sel' : '');
         const dot = document.createElementNS(svgNS, 'circle'); dot.setAttribute('cx', c.x); dot.setAttribute('cy', c.y); dot.setAttribute('r', 2.6);
         svg.append(line, dot);

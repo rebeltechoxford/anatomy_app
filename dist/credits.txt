@@ -1,5 +1,17 @@
 # Anatomy data attribution
 
+## Z-Anatomy (current male model and fitted female musculoskeletal/nerve/vessel structures)
+
+Z-Anatomy, by Gauthier Kervyn, Marcin Zielinski and contributors; Unity app by Lluís Vinent Juanico. Licensed CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Derived in part from BodyParts3D (DBCLS).
+- Source: https://github.com/Z-Anatomy/Models-of-human-anatomy and https://github.com/LluisV/Z-Anatomy (FBX exports, PC-Version branch); Latin names from its Translations0.txt.
+- Adaptations: converted from FBX (cm) to metres, coincident vertices welded, aligned to the BodyParts3D frame (similarity on 121 bone pairs + smooth RBF correction, 1.2 mm median residual), light Taubin smoothing, simplified base tier plus unsimplified detail tier, structures classified into display systems; muscle origin/insertion patches kept as attachment overlays. For the female body the same structures are reshaped with the male-to-female warp described below (marked "fitted").
+- Share-alike: the adapted Z-Anatomy geometry in dist/models and the fitted parts in dist/female are distributed under CC BY-SA 4.0.
+
+## Quick facts
+
+Origin / insertion / action / innervation / blood supply and summaries: Wikipedia contributors, article infoboxes and lead sections, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Each entry links its source article. Built by tools/facts.py.
+
+
 BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International.
 
 - License: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html (updated 2025-02-27)
