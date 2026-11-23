@@ -1,6 +1,20 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Forma · Anatomy Studio</title><link rel="stylesheet" href="style.css"></head><body>
 <header><strong><span class="mark">f</span> Forma</strong><i></i><span>Anatomy Studio</span><select id="body" aria-label="Reference body"><option value="models">Male reference</option><option value="female">Female reference</option></select><button id="reset">Reset model</button></header>
-<main><aside><div class="sidehead"><small>MODEL EXPLORER</small><h1>Dissection studio</h1><label>⌕ <input id="search" type="search" placeholder="Find a structure" aria-label="Find a structure"></label></div><div class="sectionhead"><b id="listTitle">System layers</b><small id="count">15</small></div><div id="library"></div><footer><a href="credits.txt" target="_blank">Model sources &amp; credits ↗</a></footer></aside>
+<main><aside><div class="sidehead"><small>MODEL EXPLORER</small><h1>Dissection studio</h1><label>⌕ <input id="search" type="search" placeholder="Find a structure" aria-label="Find a structure"></label><button id="pelvicReview" type="button" aria-controls="pelvicFindings" aria-expanded="false" hidden>Pelvic review</button></div><div class="library-scroll">
+<section id="pelvicFindings" hidden aria-label="Pelvic review">
+  <button id="pelvicOverview" class="review-overview" type="button">Show both areas</button>
+  <div class="review-item ovary">
+    <button id="reviewOvary" type="button">Left ovary</button>
+    <p id="ovaryNote">Location of the left ovary on the reference model.</p>
+  </div>
+  <div class="review-item bladder">
+    <button id="reviewBladder" type="button">Urinary tract context</button>
+    <p id="urineNote">The bladder is shown as an anatomical reference.</p>
+  </div>
+  <p id="labNote" hidden></p>
+  <p class="review-caption">Reference anatomy. Highlighting indicates location only.</p>
+</section>
+<div class="sectionhead"><b id="listTitle">System layers</b><small id="count">15</small></div><div id="library"></div></div><footer><a href="credits.txt" target="_blank">Model sources &amp; credits ↗</a></footer></aside>
 <section id="stage" aria-label="Interactive 3D anatomy viewer"><div class="heading"><small>ANATOMY ATLAS</small><h2>Human body</h2><p id="sourceName">Adult male <span> / </span> BodyParts3D</p></div><select id="view" aria-label="Model orientation"><option>Anterior</option><option>Posterior</option><option>Left lateral</option><option>Right lateral</option></select><div id="viewport"></div><div id="notice" role="status">Loading anatomy…</div><div class="zoom"><button id="plus" aria-label="Zoom in">+</button><button id="minus" aria-label="Zoom out">−</button><button id="fit" aria-label="Fit full body">⛶</button></div>
 <div id="inspect" hidden><small id="system"></small><h3 id="part"></h3><div><button id="hide">Hide structure</button><button id="solo">Isolate</button><button id="focus">Focus</button><button id="lookup">Details</button></div></div>
 <div id="slicePanel" hidden><b>Cutaway</b><select id="axis" aria-label="Cutaway plane"><option value="z">Coronal</option><option value="x">Sagittal</option><option value="y">Axial</option></select><select id="scope" aria-label="Cutaway scope"><option>Whole body</option><option>Selected structure</option></select><input id="depth" type="range" min="0" max="100" value="50" aria-label="Slice position"><button id="flip">Flip side</button></div><div class="tools"><button id="inspectMode" aria-pressed="true">⌖ &nbsp; Inspect</button><button id="peel" aria-pressed="false">◇ &nbsp; Dissect</button><button id="sliceButton" aria-pressed="false">Slice</button><i></i><button id="undo" disabled>↶ &nbsp; Undo</button></div><div class="hint" id="hint">Drag to rotate · Scroll to zoom · Select to inspect</div></section></main>
