@@ -8,6 +8,10 @@ import {RoomEnvironment} from './vendor/fx/RoomEnvironment.js';
 import {setupTissueVessels} from './tissue-vessels.js';
 import {TISSUES, SYSTEM_SWATCH, FIBROUS, tissueFor, makeTissueLibrary, addFiberAxis} from './tissue-materials.js';
 import {setupDetailStreaming} from './detail-loader.js';
+import {setupNerves, DERM_COLORS} from './nerve-system.js';
+import {setupStim, summarize} from './stim.js';
+import {setupMarkup} from './markup.js';
+import {imagingSection} from './imaging.js';
 
 const $ = id => document.getElementById(id);
 const cap = s => s[0].toUpperCase() + s.slice(1);
@@ -30,7 +34,8 @@ function backdrop() {
 }
 
 async function start() {
-  let clearTissue = () => {}, detail = null;
+  let clearTissue = () => {}, detail = null, nerveSys = null, stim = null, markup = null, selectedNerve = null;
+  const stimMuscles = new Set();
   const query = new URLSearchParams(location.search);
   const notes = new URLSearchParams(location.hash.slice(1));
   const folder = query.get('body') === 'female' ? 'female' : 'models';
@@ -101,7 +106,8 @@ async function start() {
       if (i === selected) return i === ovary ? selectedOvaryColor : selectedBladderColor;
       return reviewMaterials.get(i);
     }
-    return tissues.get(tissueKeys[i], i === selected);
+    if (nerveSys?.dermatomes.on && i === nerveSys.dermatomes.skinIndex && nerveSys.dermatomes.material()) return nerveSys.dermatomes.material();
+    return tissues.get(tissueKeys[i], i === selected || stimMuscles.has(parts[i].name));
   }
 
   // ---- View state ----------------------------------------------------------------
@@ -123,7 +129,7 @@ async function start() {
     plane.normal.set(0, 0, 0); plane.normal[ax] = sign;
     plane.constant = -sign * T.MathUtils.lerp(b.min[ax], b.max[ax], Number($('depth').value) / 100);
     const selectedMaterial = selected === null ? null : materialFor(selected);
-    for (const m of [...tissues.all(), ovaryColor, bladderColor, selectedOvaryColor, selectedBladderColor]) {
+    for (const m of [...tissues.all(), ovaryColor, bladderColor, selectedOvaryColor, selectedBladderColor, nerveSys?.dermatomes.material()].filter(Boolean)) {
       const planes = slicing && (!single || (p && m === selectedMaterial)) ? [plane] : [];
       if (m.clippingPlanes?.length !== planes.length) m.needsUpdate = true;
       m.clippingPlanes = planes;
@@ -159,10 +165,14 @@ async function start() {
     meshes.forEach((m, i) => { m.visible = shown[i]; m.material = materialFor(i); });
     cut(); // after material assignment so newly created materials get the plane
     $('undo').disabled = !history.length;
-    $('inspect').hidden = selected === null;
-    if (selected !== null) {
+    $('inspect').hidden = selected === null && !selectedNerve;
+    for (const id of ['hide', 'solo', 'focus', 'lookup']) $(id).hidden = !!selectedNerve;
+    if (selectedNerve) {
+      $('part').textContent = selectedNerve.name;
+      $('system').textContent = 'MODELED NERVE · ' + (selectedNerve.segments || []).join(' ');
+    } else if (selected !== null) {
       $('part').textContent = parts[selected].name;
-      $('system').textContent = parts[selected].system.toUpperCase() + ' SYSTEM';
+      $('system').textContent = parts[selected].system.toUpperCase() + ' SYSTEM' + (parts[selected].fitted ? ' · FITTED' : '');
       detail?.want(selected);
     }
     library();
@@ -225,7 +235,7 @@ async function start() {
     if (note) { $(id).textContent = note; $(id).hidden = false; }
   }
 
-  function pick(i) { if (!shown[i]) { save(); shown[i] = true; } selected = i; sync(); }
+  function pick(i) { if (!shown[i]) { save(); shown[i] = true; } selected = i; selectedNerve = null; sync(); }
   function remove(i) { save(); shown[i] = false; selected = null; sync(); }
   function button(label, fn, cls) { const b = document.createElement('button'); b.textContent = label; b.className = cls || ''; b.onclick = fn; return b; }
 
@@ -269,6 +279,7 @@ async function start() {
     add('small', cap(p.system) + ' system');
     add('h2', p.name);
     add('p', (folder === 'female' ? 'Human Reference Atlas · Female v1.5' : 'BodyParts3D · Male v4.0') + (p.conceptId ? ' · ' + p.conceptId : ''));
+    if (p.fitted) add('p', 'Fitted structure: male BodyParts3D anatomy reshaped to this female body (skin and skeleton registration). Approximate shape and position; the female source data does not include it.');
     add('p', 'Model extent (width × height × depth): ' + p.bounds[1].map((v, j) => Math.round((v - p.bounds[0][j]) * 1000)).join(' × ') + ' mm.');
     const link = add('a', 'Look up ' + p.name + ' in NCBI Bookshelf ↗');
     link.href = 'https://www.ncbi.nlm.nih.gov/books/?term=' + encodeURIComponent(p.name); link.target = '_blank';
@@ -280,6 +291,7 @@ async function start() {
     add('p', 'This pathway is a study guide. The reference meshes cover only some of its segments. Individual axons and synapses are beyond their resolution.');
     const ref = add('a', 'Read about the corticospinal tract and foot innervation ↗');
     ref.href = 'https://www.ncbi.nlm.nih.gov/books/?term=corticospinal+tract+OR+deep+peroneal+nerve'; ref.target = '_blank';
+    imagingSection(p.name, d);
     $('details').showModal();
   };
 
@@ -324,16 +336,48 @@ async function start() {
 
   let down;
   const canvas = renderer.domElement;
-  canvas.addEventListener('pointerdown', e => down = [e.clientX, e.clientY]);
-  canvas.addEventListener('pointerup', e => {
-    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
-    const r = canvas.getBoundingClientRect(), ray = new T.Raycaster();
+  const ray = new T.Raycaster();
+  function hitAt(e) {
+    const r = canvas.getBoundingClientRect();
     ray.setFromCamera(new T.Vector2((e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2), camera);
-    const hit = ray.intersectObjects(meshes.filter(m => m.visible), false)
-      .find(h => !h.object.material.clippingPlanes?.length || plane.distanceToPoint(h.point) >= 0);
-    if (hit) { const i = hit.object.userData.index; dissect ? remove(i) : pick(i); }
-    else { selected = null; sync(); }
+    const targets = meshes.filter(m => m?.visible);
+    if (nerveSys?.visible) targets.push(...nerveSys.tubes);
+    return ray.intersectObjects(targets, false).find(h => !h.object.material.clippingPlanes?.length || plane.distanceToPoint(h.point) >= 0);
+  }
+  canvas.addEventListener('pointerdown', e => {
+    down = [e.clientX, e.clientY];
+    if (markup && markup.tool !== 'none' && e.button === 0) {
+      const hit = hitAt(e);
+      if (hit && markup.pointerDown(hit)) { orbit.enabled = false; canvas.setPointerCapture(e.pointerId); e.preventDefault(); }
+    }
   });
+  canvas.addEventListener('pointermove', e => { if (markup?.drawing) markup.pointerMove(hitAt(e)); });
+  canvas.addEventListener('pointerup', e => {
+    if (markup?.drawing || !orbit.enabled) { markup?.pointerUp(); orbit.enabled = true; down = null; return; }
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+    if (markup && markup.tool !== 'none') return;
+    const hit = hitAt(e);
+    if (stimArm !== null && hit) { stim.place(hit, stimArm); setStimArm(null); return; }
+    if (hit?.object.userData.nerve) { selectNerve(hit.object.userData.nerve); return; }
+    if (hit) {
+      const i = hit.object.userData.index;
+      if (nerveSys?.dermatomes.on && i === nerveSys.dermatomes.skinIndex) showDermatome(hit.point);
+      dissect ? remove(i) : pick(i);
+    } else { selected = null; selectedNerve = null; sync(); }
+  });
+  let stimArm = null;
+  function setStimArm(k) {
+    stimArm = k;
+    $('placeA').setAttribute('aria-pressed', k === 0); $('placeC').setAttribute('aria-pressed', k === 1);
+    $('hint').textContent = k === null ? 'Drag to rotate · Scroll to dive in · Right-drag to pan · Select to inspect' : `Click a structure to place the ${k ? 'cathode (−)' : 'anode (+)'}`;
+  }
+  function selectNerve(n) { selected = null; selectedNerve = n; sync(); }
+  function showDermatome(p) {
+    const L = nerveSys.dermatomeAt(p);
+    if (!L) return;
+    openTab('nerves');
+    runTrace({level: L.startsWith('V') ? null : L, side: p.x > 0 ? 1 : -1, kind: $('pathKind').value === 'motor' ? 'touch' : $('pathKind').value, label: L});
+  }
 
   const requestedStructure = query.get('structure');
   if (canReview && query.get('view') === 'pelvic-review') showReview();
@@ -385,12 +429,196 @@ async function start() {
     sync();
   }});
 
+  // ---- Tabs ----------------------------------------------------------------------
+  function openTab(name) {
+    for (const t of ['layers', 'nerves', 'stim', 'patients']) {
+      $('tab-' + t).setAttribute('aria-selected', t === name);
+      $('panel-' + t).hidden = t !== name;
+    }
+    if (name !== 'stim') setStimArm(null);
+    if (name !== 'patients' && markup) { markup.setTool('none'); }
+  }
+  for (const t of ['layers', 'nerves', 'stim', 'patients']) $('tab-' + t).onclick = () => openTab(t);
+
+  // ---- Nerves & pathways ----------------------------------------------------------
+  try {
+    nerveSys = await setupNerves({T, folder, parts, meshes, scene, tissues, invalidate});
+  } catch (e) { console.warn('Nerve model unavailable', e); }
+  function runTrace(opts) {
+    if (!nerveSys) return;
+    if (!nerveSys.visible) { $('nervesOn').checked = true; nerveSys.setVisible(true); }
+    const out = nerveSys.trace(opts), box = $('traceOut');
+    if (out.box && !out.box.isEmpty()) {
+      const c = out.box.getCenter(new T.Vector3()), size = out.box.getSize(new T.Vector3()).length();
+      orbit.target.copy(c);
+      const dir = camera.position.clone().sub(c).normalize();
+      camera.position.copy(c).addScaledVector(dir, Math.max(.25, size * 1.5 / Math.min(1, camera.aspect)));
+      orbit.update(); invalidate();
+    }
+    box.replaceChildren();
+    const h = document.createElement('h5'); h.textContent = out.title + (opts.label?.startsWith('V') ? ` (trigeminal ${opts.label} dermatome)` : ''); box.append(h);
+    const ol = document.createElement('ol');
+    out.steps.forEach(t => { const li = document.createElement('li'); li.textContent = t; ol.append(li); });
+    box.append(ol);
+    const muscles = opts.nerve ? [...nerveSys.musclesOf(opts.nerve)] : opts.level ? [...new Set(nerveSys.model.nerves.filter(n => n.segments.includes(opts.level) && (!opts.side || n.side === (opts.side > 0 ? 'left' : 'right'))).flatMap(n => n.muscles || []))] : [];
+    if (muscles.length) {
+      const t = document.createElement('p'); t.className = 'fine'; t.textContent = 'Muscles supplied (modeled):'; box.append(t);
+      const chips = document.createElement('div'); chips.className = 'chips';
+      muscles.slice(0, 40).forEach(m => { const i = parts.findIndex(p => p.name === m); if (i >= 0) chips.append(button(m, () => { pick(i); focus(); }, '')); });
+      box.append(chips);
+    }
+    if (nerveSys.dermatomes.on && out.segments?.length === 1) nerveSys.dermatomes.set(true, out.segments[0]);
+    document.querySelectorAll('#levelGrid button').forEach(b => b.setAttribute('aria-pressed', b.textContent === opts.level));
+  }
+  if (nerveSys) {
+    const grid = $('levelGrid');
+    nerveSys.levels.forEach(l => {
+      const b = button(l.id, () => runTrace({level: l.id, side: Number($('pathSide').value), kind: $('pathKind').value}), '');
+      b.style.setProperty('--c', nerveSys.dermatomes.colorOf(l.id)); b.title = l.exit + '\n' + l.dermatome; b.setAttribute('aria-pressed', 'false');
+      grid.append(b);
+    });
+    $('nervesOn').onchange = () => { nerveSys.setVisible($('nervesOn').checked); if (!$('nervesOn').checked) nerveSys.clearTrace(); };
+    $('dermOn').onchange = () => {
+      const on = $('dermOn').checked, skin = nerveSys.dermatomes.skinIndex;
+      if (on && skin >= 0 && !shown[skin]) { save(); shown[skin] = true; }
+      nerveSys.dermatomes.set(on);
+      sync();
+    };
+    $('traceClear').onclick = () => { nerveSys.clearTrace(); $('traceOut').replaceChildren(); if (nerveSys.dermatomes.on) nerveSys.dermatomes.set(true); };
+    const traceCurrent = () => {
+      openTab('nerves');
+      const kind = $('pathKind').value;
+      if (selectedNerve) return runTrace({nerve: selectedNerve, kind});
+      if (selected === null) { $('traceOut').textContent = 'Select a muscle, vertebra, nerve or skin first (or pick a spinal level below).'; return; }
+      const p = parts[selected];
+      const levels = nerveSys.vertebraLevels(p.name);
+      if (levels.length) return runTrace({level: levels[0], side: Number($('pathSide').value), kind});
+      const ns = nerveSys.nervesForMuscle(p.name).filter(n => n.kind !== 'twig');
+      if (ns.length) return runTrace({nerve: ns[0], muscle: p.name, kind: kind === 'motor' ? 'motor' : kind});
+      if (p.name === 'Skin') { $('traceOut').textContent = 'Turn on the dermatome map and click the skin to trace that spot.'; return; }
+      $('traceOut').textContent = `No modeled nerve supply for “${p.name}”. Try a skeletal muscle, a vertebra, or a spinal level.`;
+    };
+    $('traceSelected').onclick = traceCurrent;
+    $('trace').onclick = traceCurrent;
+  } else { $('tab-nerves').disabled = true; }
+
+  // ---- Stimulation ------------------------------------------------------------------
+  if (nerveSys) {
+    stim = setupStim({T, parts, meshes, scene, nerves: nerveSys, invalidate, tissues, stimUniforms: tissues.stim});
+    const toCurrent = x => 0.001 * Math.pow(10, x / 1000 * 5); // slider 0..1000 -> 1 µA .. 100 mA
+    const fromCurrent = mA => Math.round(Math.log10(mA / .001) / 5 * 1000);
+    const fmt = mA => mA < .01 ? (mA * 1000).toFixed(1) + ' µA' : mA < 1 ? (mA * 1000).toFixed(0) + ' µA' : mA.toFixed(mA < 10 ? 2 : 1) + ' mA';
+    const read = () => {
+      stim.set({mode: $('stimMode').value, current: toCurrent(+$('stimI').value), pw: +$('stimPW').value || 200, freq: +$('stimF').value || 30, area: +$('stimArea').value || 4, depth: +$('stimDepth').value || 0});
+      $('stimIOut').textContent = fmt(stim.state.current);
+      $('stimAreaField').hidden = stim.state.mode !== 'surface'; $('stimDepthField').hidden = stim.state.mode === 'surface';
+    };
+    for (const id of ['stimMode', 'stimI', 'stimPW', 'stimF', 'stimArea', 'stimDepth']) $(id).oninput = () => { $('stimPreset').value = ''; read(); };
+    $('stimPreset').onchange = () => {
+      const P = {tens: ['surface', 15, 200, 30, 25], motor: ['surface', 30, 300, 35, 25], block: ['implanted', .5, 100, 2, null, 3], penfield: ['implanted', 4, 300, 50, null, 1], micro: ['implanted', .1, 100, 10, null, 1]}[$('stimPreset').value];
+      if (!P) return;
+      $('stimMode').value = P[0]; $('stimI').value = fromCurrent(P[1]); $('stimPW').value = P[2]; $('stimF').value = P[3];
+      if (P[4]) $('stimArea').value = P[4]; if (P[5] != null) $('stimDepth').value = P[5];
+      read();
+    };
+    $('placeA').onclick = () => setStimArm(stimArm === 0 ? null : 0);
+    $('placeC').onclick = () => setStimArm(stimArm === 1 ? null : 1);
+    $('stimClear').onclick = () => { stim.clear(); stimMuscles.clear(); sync(); };
+    $('stimSave').onclick = () => {
+      if (!markup?.active()) { openTab('patients'); $('noPatient').textContent = 'Create or pick a person first, then save the stimulation again.'; return; }
+      const a = markup.addStim(stim.snapshot()); if (a) { openTab('patients'); }
+    };
+    stim.onResult(r => {
+      const out = $('stimOut'); out.replaceChildren();
+      stimMuscles.clear();
+      if (!r) { sync(); return; }
+      const sec = (t) => { const h = document.createElement('h5'); h.textContent = t; out.append(h); };
+      const line = (t, cls = 'hit', onClick) => { const d = document.createElement('div'); d.className = cls; d.textContent = t; if (onClick) { d.style.cursor = 'pointer'; d.onclick = onClick; } out.append(d); };
+      const m = document.createElement('div'); m.className = 'meter';
+      m.textContent = `≈ ${r.voltage < 1 ? (r.voltage * 1000).toFixed(0) + ' mV' : r.voltage.toFixed(1) + ' V'} across the electrodes · ${r.chargeDensity.toFixed(2)} µC/cm² per phase`;
+      out.append(m);
+      r.warnings.forEach(w => line('⚠ ' + w, 'warn'));
+      if (!r.skin.length && !r.nerves.length && !r.cortex.length) line('Nothing reaches threshold. Increase current or pulse width, or move the electrodes closer to a nerve.', 'hit sub');
+      if (r.skin.length) { sec('Skin'); r.skin.forEach(x => line(`${x.electrode ? 'Cathode' : 'Anode'}: ${x.label} — ${x.where}`, x.ratio >= 1 ? 'hit' : 'hit sub')); }
+      if (r.nerves.length) {
+        sec('Nerve fibres excited');
+        const seen = new Set();
+        r.nerves.forEach(x => { const key = x.nerve.id + x.fibre.id; if (seen.has(key) || seen.size > 24) return; seen.add(key);
+          line(`${x.nerve.name} · ${x.fibre.name} (${x.ratio.toFixed(1)}×) → ${x.fibre.effect}${!x.fibre.motor && x.nerve.skin ? ' — felt in: ' + x.nerve.skin : ''}`, 'hit', () => selectNerve(x.nerve)); });
+      }
+      if (r.muscles.size) {
+        sec(stim.state.freq >= 20 ? 'Muscles contracting (fused at ≥20 Hz)' : 'Muscles twitching');
+        for (const [name, x] of r.muscles) { stimMuscles.add(name); const i = parts.findIndex(p => p.name === name); line(`${name} — via ${x.via}`, 'hit', i >= 0 ? () => { pick(i); focus(); } : null); }
+      }
+      if (r.cortex.length) { sec('Brain'); r.cortex.forEach(c => line(`${c.area} — ${c.name} (${c.side}): ${c.effect} [${c.ratio.toFixed(1)}×]`)); }
+      sync();
+    });
+    read();
+  } else { $('tab-stim').disabled = true; }
+
+  // ---- Patients & markup ------------------------------------------------------------
+  markup = setupMarkup({T, scene, parts, folder, invalidate, onFocus(a) {
+    const box = new T.Box3(); a.points.forEach(q => box.expandByPoint(new T.Vector3(...q)));
+    box.getCenter(orbit.target);
+    const dir = camera.position.clone().sub(orbit.target).normalize();
+    camera.position.copy(orbit.target).addScaledVector(dir, Math.max(.12, box.getSize(new T.Vector3()).length() * 3));
+    orbit.update(); invalidate();
+  }});
+  function renderPatients(focusId) {
+    const db = markup.db, p = markup.active();
+    $('patientSel').replaceChildren(...db.patients.map(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name + (x.relation ? ` (${x.relation})` : ''); o.selected = x.id === db.activeId; return o; }));
+    $('patientForm').hidden = !p; $('noPatient').hidden = !!p;
+    if (!p) return;
+    if (document.activeElement?.closest?.('#patientForm') == null || focusId === 'all') {
+      $('pName').value = p.name || ''; $('pRel').value = p.relation || ''; $('pDob').value = p.dob || ''; $('pBody').value = p.body || folder; $('pNotes').value = p.notes || '';
+    }
+    for (const [id, t] of [['toolNone', 'none'], ['toolPin', 'pin'], ['toolDraw', 'draw']]) $(id).setAttribute('aria-pressed', markup.tool === t);
+    const list = $('annotations'); list.replaceChildren();
+    const mine = p.annotations.filter(a => a.body === folder), other = p.annotations.length - mine.length;
+    mine.forEach((a, n) => {
+      const card = document.createElement('div'); card.className = 'annotation'; card.style.setProperty('--c', a.color);
+      const head = document.createElement('header');
+      const label = document.createElement('span'); label.textContent = `${n + 1}. ${a.type === 'pin' ? '📍' : a.type === 'stim' ? '⚡' : '✎'} ${a.partName || a.type}`;
+      head.append(label, button('Go', () => markup.focus(a.id), ''), button('✕', () => { if (confirm('Delete this note?')) markup.removeAnnotation(a.id); }, ''));
+      const ta = document.createElement('textarea'); ta.rows = 2; ta.placeholder = 'Note…'; ta.value = a.note || '';
+      ta.onchange = () => markup.annotate(a.id, {note: ta.value});
+      card.append(head);
+      if (a.type === 'stim' && a.stim) { const d = document.createElement('div'); d.className = 'fine'; d.textContent = `${a.stim.mode}, ${a.stim.current_mA} mA, ${a.stim.pulseWidth_us} µs, ${a.stim.frequency_Hz} Hz — ${(a.stim.summary || []).slice(0, 3).join(' · ')}`; card.append(d); }
+      card.append(ta);
+      list.append(card);
+      if (a.id === focusId) setTimeout(() => ta.focus(), 50);
+    });
+    if (other) { const d = document.createElement('p'); d.className = 'fine'; d.textContent = `${other} more note(s) on the other reference body.`; list.append(d); }
+    if ($('rawBox').hidden === false && document.activeElement !== $('rawJson')) $('rawJson').value = JSON.stringify(p, null, 2);
+  }
+  markup.onChange(id => renderPatients(id));
+  $('swatches').replaceChildren(...markup.PALETTE.map(c => { const b = button('', () => { markup.setColor(c); [...$('swatches').children].forEach(x => x.setAttribute('aria-pressed', x === b)); }, ''); b.style.setProperty('--c', c); b.setAttribute('aria-label', 'Colour ' + c); b.setAttribute('aria-pressed', c === markup.color); return b; }));
+  $('patientNew').onclick = () => { const name = prompt('Name for the new person?', ''); if (name !== null) { markup.addPatient({name: name.trim() || 'New person', body: folder}); renderPatients('all'); } };
+  $('patientSel').onchange = () => { markup.select($('patientSel').value); renderPatients('all'); };
+  for (const [id, key] of [['pName', 'name'], ['pRel', 'relation'], ['pDob', 'dob'], ['pBody', 'body'], ['pNotes', 'notes']]) $(id).onchange = () => markup.update({[key]: $(id).value});
+  for (const [id, t] of [['toolNone', 'none'], ['toolPin', 'pin'], ['toolDraw', 'draw']]) $(id).onclick = () => { markup.setTool(t); setStimArm(null); $('hint').textContent = t === 'none' ? 'Drag to rotate · Scroll to dive in · Right-drag to pan · Select to inspect' : t === 'pin' ? 'Click a structure to pin a note' : 'Drag on a surface to draw · release to save'; };
+  $('exportAll').onclick = () => markup.exportJSON(true);
+  $('exportOne').onclick = () => markup.exportJSON(false);
+  $('importFile').onchange = async () => {
+    const f = $('importFile').files[0]; if (!f) return;
+    try { const r = markup.importJSON(await f.text()); alert(`Imported: ${r.added} new, ${r.updated} updated.`); renderPatients('all'); }
+    catch (e) { alert('That file is not valid JSON: ' + e.message); }
+    $('importFile').value = '';
+  };
+  $('rawToggle').onclick = () => { $('rawBox').hidden = !$('rawBox').hidden; if (!$('rawBox').hidden) $('rawJson').value = JSON.stringify(markup.active(), null, 2); };
+  $('rawApply').onclick = () => {
+    try { const obj = JSON.parse($('rawJson').value); obj.id = markup.active().id; markup.importJSON(JSON.stringify({patients: [obj]})); renderPatients('all'); }
+    catch (e) { alert('Invalid JSON: ' + e.message); }
+  };
+  $('patientDelete').onclick = () => { const p = markup.active(); if (p && confirm(`Delete ${p.name} and all their notes from this browser? Export first if you want a copy.`)) { markup.remove(); renderPatients('all'); } };
+  renderPatients('all'); markup.render();
+
   // ---- Full-resolution streaming ---------------------------------------------------
   if (gpu) {
     const badge = $('detailStatus');
     detail = await setupDetailStreaming({
       T, folder, parts, meshes, camera, orbit, shown: () => shown,
-      onGeometry(i, g) { prepare(i, g); invalidate(); },
+      onGeometry(i, g) { prepare(i, g); if (i === nerveSys?.dermatomes.skinIndex) queueMicrotask(() => nerveSys.dermatomes.refresh()); invalidate(); },
       onProgress({ready, total, loading}) {
         badge.hidden = !ready && !loading;
         badge.classList.toggle('busy', loading > 0);

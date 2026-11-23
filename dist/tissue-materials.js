@@ -87,6 +87,8 @@ export function tissueFor(part) {
 const NOISE_GLSL = /* glsl */`
 uniform int tPattern;
 uniform float tScale, tBump, tVary, tFiber, tRim;
+uniform float tStimOn, tStimK, tStimR0, tStimRef;
+uniform vec3 tStimA, tStimC;
 uniform vec3 tAlt;
 varying vec3 vTPos;
 varying vec3 vTFiber;
@@ -175,8 +177,8 @@ void tissueDetail(){
 }
 `;
 
-function inject(material, spec) {
-  const uniforms = {
+function inject(material, spec, shared) {
+  const uniforms = {...shared,
     tPattern: {value: spec.pattern}, tScale: {value: spec.scale}, tBump: {value: spec.bump},
     tVary: {value: spec.vary}, tFiber: {value: spec.fiber || 0}, tAlt: {value: spec.altColor}, tRim: {value: spec.rim || 0},
   };
@@ -202,15 +204,28 @@ function inject(material, spec) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         // Selection: teal Fresnel rim that leaves the tissue colour readable.
         float tF = pow(1.0 - abs(dot(normalize(vViewPosition), normalize(nonPerturbedNormal))), 2.5);
-        totalEmissiveRadiance += vec3(.18,.85,.68) * tRim * (.035 + .8*tF);`);
+        totalEmissiveRadiance += vec3(.18,.85,.68) * tRim * (.035 + .8*tF);
+        // Stimulation field heat map: |E| relative to a typical activation field.
+        if (tStimOn > .5) {
+          vec3 da = vTPos - tStimA, dc = vTPos - tStimC;
+          float ra2 = dot(da,da) + tStimR0*tStimR0, rc2 = dot(dc,dc) + tStimR0*tStimR0;
+          float E = length(da/(ra2*sqrt(ra2)) - dc/(rc2*sqrt(rc2))) * tStimK;
+          float e = E / tStimRef;
+          float heat = smoothstep(.08, 1.0, e);
+          vec3 ramp = mix(vec3(.15,.35,1.0), mix(vec3(1.0,.85,.2), vec3(1.0,.15,.05), smoothstep(1.0, 3.0, e)), smoothstep(.2, 1.0, e));
+          totalEmissiveRadiance += ramp * heat * .8;
+        }`);
   };
-  material.customProgramCacheKey = () => 'tissue-v2';
+  material.customProgramCacheKey = () => 'tissue-v3';
 }
 
 // Builds tissue materials on demand. highlight=true returns the selection
 // variant (same surface plus a soft emissive glow).
 export function makeTissueLibrary(T) {
   const cache = new Map();
+  // Shared by every tissue material (stimulation field overlay).
+  const stim = {tStimOn: {value: 0}, tStimK: {value: 0}, tStimR0: {value: .001}, tStimRef: {value: 40},
+    tStimA: {value: new T.Vector3()}, tStimC: {value: new T.Vector3()}};
   function get(key, highlight = false) {
     const id = key + (highlight ? ':hi' : '');
     if (cache.has(id)) return cache.get(id);
@@ -221,12 +236,12 @@ export function makeTissueLibrary(T) {
       sheen: spec.sheen || 0, sheenColor: new T.Color(spec.sheenColor || '#ffffff'), sheenRoughness: .5,
       specularIntensity: .6, envMapIntensity: .75,
     });
-    inject(m, {...spec, altColor: new T.Color(spec.alt), rim: highlight ? 1 : 0});
+    inject(m, {...spec, altColor: new T.Color(spec.alt), rim: highlight ? 1 : 0}, stim);
     m.name = id;
     cache.set(id, m);
     return m;
   }
-  return {get, all: () => [...cache.values()]};
+  return {get, all: () => [...cache.values()], stim};
 }
 
 // Muscle, tendon and nerve streaks follow the structure's principal axis.
