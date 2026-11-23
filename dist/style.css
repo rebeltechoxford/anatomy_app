@@ -139,3 +139,27 @@ button.link{background:none;border:0;color:var(--accent);text-decoration:underli
 .studies li{margin:5px 0}
 .studies small{display:block;font-size:11px;letter-spacing:0;color:var(--muted)}
 #inspect #trace{background:var(--accent);color:#112c27;border-color:var(--accent)}
+
+/* Inspect: Latin name and quick facts */
+.latin{font:italic 13px Georgia,serif;color:var(--muted);margin:-8px 0 8px}
+.quick{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0 0 10px;font-size:12px;line-height:1.35;max-height:180px;overflow:auto}
+.quick dt{font:600 10.5px 'Courier New',monospace;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);padding-top:1px}
+.quick dd{margin:0}
+.quick.full{max-height:none;font-size:13px;margin:10px 0}
+/* Leader-line labels */
+.labels{position:absolute;inset:0;z-index:1;pointer-events:none}
+.labels svg{position:absolute;inset:0}
+.labels polyline{fill:none;stroke:#e9f2ee;stroke-width:1;opacity:.75}
+.labels polyline.sel{stroke:var(--accent);opacity:1;stroke-width:1.5}
+.labels circle{fill:#fff}
+.labels.moving{opacity:.25;transition:opacity .15s}
+.label{position:absolute;pointer-events:auto;max-width:min(230px,30%);text-align:left;background:#13202499;border:1px solid #ffffff22;border-radius:5px;padding:4px 8px;display:flex;flex-direction:column;gap:1px;backdrop-filter:blur(3px);line-height:1.2}
+.label.r{text-align:right;align-items:flex-end}
+.label b{font:600 12px Inter,'Segoe UI',sans-serif;color:var(--ink)}
+.label i{font:italic 11px Georgia,serif;color:var(--muted)}
+.label.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+/* Dissection peel */
+.peel{display:flex;align-items:center;gap:6px;font-size:13px;border:0;background:none;padding:0 6px}
+.peel input{width:110px;accent-color:var(--accent)}
+.peel output{font:12px 'Courier New',monospace;min-width:42px}
+@media(max-width:760px){.label{max-width:44%}.label i{display:none}.peel input{width:70px}.tools{max-width:96vw;overflow-x:auto}}

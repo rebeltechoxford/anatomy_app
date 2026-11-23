@@ -31,7 +31,10 @@ export async function imagingSection(name, container) {
   try {
     radiology ||= await fetch('radiology.json').then(r => r.ok ? r.json() : null);
   } catch { radiology = null; }
-  const entry = radiology?.items?.[key];
+  const items = radiology?.items || {};
+  const whole = key.replace(/^.*? (part|head|belly|portion|layer|division) of (the )?/i, '');
+  const cands = [key, key.replace(/\s+muscles?$/i, ''), whole, whole.replace(/\s+muscles?$/i, '')].map(k => k && k[0].toUpperCase() + k.slice(1));
+  const entry = cands.map(k => items[k]).find(e => e?.figures?.length) || items[key];
   if (entry?.figures?.length) {
     for (const f of entry.figures) {
       const fig = el('figure');

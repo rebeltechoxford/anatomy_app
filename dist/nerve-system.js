@@ -38,7 +38,7 @@ export async function setupNerves({T, folder, parts, meshes, scene, tissues, inv
     mesh.userData.nerve = n; mesh.name = n.name;
     group.add(mesh); tubes.push(mesh);
   }
-  const hasCordMeshes = parts.some(p => /spinal cord segment|segment of cervical spinal cord/i.test(p.name));
+  const hasCordMeshes = parts.some(p => /spinal cord/i.test(p.name));
   if (!hasCordMeshes) {
     const cord = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(model.cord.path.map(v3)), 200, model.cord.r, 12, false), cordMat);
     cord.userData.nerve = {id: 'cord', name: 'Spinal cord (modeled)', kind: 'cord', segments: LEVELS, skin: '', targets: [], muscles: [], fibers: 'mixed'};

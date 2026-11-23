@@ -19,7 +19,6 @@ const [body, bundle, fittedBundle, fittedMeta] = process.argv.slice(2);
 await MeshoptEncoder.ready; await MeshoptSimplifier.ready;
 const dir = `dist/${body}`;
 const atlas = JSON.parse(fs.readFileSync(`${dir}/atlas.json`, 'utf8'));
-const near = JSON.parse(fs.readFileSync(`${dir}/near.json`, 'utf8'));
 
 function readBundle(name) {
   const {counts} = JSON.parse(fs.readFileSync(name + '.json', 'utf8'));
@@ -31,6 +30,14 @@ function readBundle(name) {
 }
 
 const meshes = readBundle(bundle);
+let near = JSON.parse(fs.readFileSync(`${dir}/near.json`, 'utf8'));
+if (fs.existsSync(bundle + '.parts.json')) {
+  // Full replacement part list (tools/compose.py): metadata comes with the bundle.
+  atlas.parts = JSON.parse(fs.readFileSync(bundle + '.parts.json', 'utf8'));
+  atlas.version = 'Z-Anatomy + ' + (body === 'models' ? 'BodyParts3D skin' : 'HRA female v1.5');
+  delete atlas.concepts; delete atlas.sourceTriangles; delete atlas.optimized;
+  near = [];
+}
 if (meshes.length !== atlas.parts.length) throw Error('bundle/atlas mismatch');
 if (fittedBundle) {
   const meta = JSON.parse(fs.readFileSync(fittedMeta, 'utf8'));
